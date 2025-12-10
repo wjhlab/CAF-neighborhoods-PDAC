@@ -16,9 +16,8 @@ This repository is associated with the following manuscript:
 
 All raw MCD data files, and the backup_output.rds files containing the fully annotated data frame required to reproduce the manuscript figures, are available at 10.5281/zenodo.14871170 
 
-## Output data
+## Scripts
 
-`Output folder` contains all figures generated from the scripts in this repository. 
 
 
 
