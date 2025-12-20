@@ -1,100 +1,6 @@
-################################
-#    Neighborhood analysis     #
-################################
-# Fig2C, 2D, 3K, 3L, 5H, 6A, 6B 
-
-library(ComplexHeatmap)
-library(reshape2)
-library(dittoSeq)
-library(dplyr)
-library(tibble)
-library(cowplot)
-library(ggpubr)
-library(readxl)
-library(pals)
-
-
-work<-getwd()
-metaDataFile = paste0(work,"/Config/metadata.xlsx")
-
-### Load backup data ===========================================================
-
-#CAF
-cafsubset_data<- readRDS('./backup/CAFsubset_phenographoutput_01_095_fixed.RDS')
-data_caf<- cafsubset_data[[1]]
-## Load merge file
-clusterMergeFile = paste0(work,"/Config/merge_CAF.xlsx") 
-cluster_merging <- read_excel(clusterMergeFile)
-
-clusterlevels=c("FAP+ IL6+",
-                "VIM+",
-                "VIM+ CD105+",
-                "HLADR+",
-                "SMA+ CD105+",
-                "SMA+ IL8+",
-                "SMA+ CXCL12+",
-                "FAP+",
-                "SMA+",
-                "CD105+",
-                "SMA+ PDPN+",
-                "FAP+ CD105+",
-                "CAF undefined",
-                "SMA+ CXCL12+ FAP+ PDPN+",
-                "CD105+ HLADR+",
-                "FAP+ CXCL12+ IL6+ IL8+")
-
-mm1 <- match(data_caf$cluster_str, cluster_merging$original_cluster)
-data_caf$cluster2m_refined <- cluster_merging$new_cluster[mm1]
-
-# re-define FAP+ -> FAP+ PDPN+ HLADR+ CAF
-clusterMergeFile = paste0(work,"/Config/merge_CAF_broad.xlsx") 
-cluster_merging <- read_excel(clusterMergeFile)
-
-clusterlevels=c("iCAF",
-                "myCAF",
-                "CD105+ CAF",
-                "ApCAF",
-                "CXCL12+ CAF",
-                "FAP+ PDPN+ HLADR+ CAF",
-                "CAF undefined")
-mm1 <- match(data_caf$cluster_str, cluster_merging$original_cluster)
-data_caf$cluster1m_refined <- cluster_merging$new_cluster[mm1]
-
-
-#Tumor
-tumorsubset_data<- readRDS('./backup/tumorsubset_phenographoutput_01_095_fixed.RDS')
-data_tumor<-tumorsubset_data[[1]]
-#Immune cells 
-cd45subset_data<- readRDS('./backup/CD45subset_phenographoutput_01_095_fixed.RDS')
-data_cd45<- cd45subset_data[[1]]
-
-#finer Tcell subtypes 
-tcellsubset_data<- readRDS('./backup/tcellsubset_phenographoutput_01_095_fixed.RDS')
-data_tcell<- tcellsubset_data[[1]]
-
-clusterMergeFile = paste0(work,"/Config/KYLIEmerge_tcell.xlsx") 
-cluster_merging <- read_excel(clusterMergeFile)
-
-clusterlevels=c("CD8+",
-                "CD4+",
-                "Cytotoxic CD8",
-                "Activated CD4",
-                "Memory CD4",
-                "Naïve CD4",
-                "Naïve CD8",
-                "Treg")
-mm1 <- match(data_tcell$cluster_tcell, cluster_merging$original_cluster)
-data_tcell$cluster1m_refined <- cluster_merging$KYLIE_new_cluster[mm1]
-
-
-## Read-in metadata and clean =======
-ifelse(grepl(metaDataFile,pattern='.xlsx'),
-       md <- read_excel(metaDataFile),
-       md <- read.csv(metaDataFile,header = TRUE))#must be in xl format or csv
-
-md$file_name <- factor(md$file_name)
-md$File_order <- factor(md$File_order)
-colnames(md)[7]<-"Patient"
+#######################################################
+#             02. CAF neighborhood analysis           #
+#######################################################
 
 # FFX treated & untreated patients 
 treated_sampleId<- unique(md[md$Treatment=="FFX", ]$sample_id)
@@ -170,6 +76,7 @@ cafs_near_basal_untreated     <- get_near(data_caf_clean_untreated, basalcell_in
 cafs_near_classical_untreated <- get_near(data_caf_clean_untreated, classicalcell_ind)
 cafs_near_mixed_untreated     <- get_near(data_caf_clean_untreated, mixedcell_ind)
 
+## combined - all samples
 cafs_near_basal_combined     <- get_near(data_caf_clean_ext, basalcell_ind)
 cafs_near_classical_combined <- get_near(data_caf_clean_ext, classicalcell_ind)
 cafs_near_mixed_combined     <- get_near(data_caf_clean_ext, mixedcell_ind)
@@ -190,7 +97,7 @@ caf_near_epi_sum_treated   <- make_caf_summary(cafs_near_basal_treated, cafs_nea
 caf_near_epi_sum_untreated <- make_caf_summary(cafs_near_basal_untreated, cafs_near_classical_untreated, cafs_near_mixed_untreated)
 
 ##Heatmap of CAF subtypes by tumor cell subtypes
-### Fig 2C ####
+### Figure 2C ####
 fig2C_1<-Heatmap(t(scale(t(as.matrix(caf_near_epi_sum_combined)))),
         cluster_rows = T, cluster_columns = T, 
         name = "Scaled\nFreq",
@@ -218,10 +125,11 @@ fig2C_3<-Heatmap(t(scale(t(as.matrix(caf_near_epi_sum_treated)))),
         heatmap_legend_param = list(
           labels_gp=gpar(fontsize=6)))
 
+### Figure 2C and Figure S5B & C ####
 pdf('./output/Fig2C_combined.pdf')
 draw(fig2C_1)
-draw(fig2C_2)
-draw(fig2C_3)
+draw(fig2C_2) # Fig S5B
+draw(fig2C_3) # Fig S5C
 dev.off()
 
 # Convert data to format for ggplot
@@ -241,7 +149,7 @@ names(colorassigned)<- clusterlevels
 plot_data_long$Subtype<- factor(plot_data_long$Subtype, levels=clusterlevels)
 
 # Create a stacked bar chart with custom colors
-### Fig 2D ####
+### Figure 2D ####
 pdf('./output/Fig2D.pdf', height=3.5, width=4)
 fig2D<-ggplot(plot_data_long, aes(x = TumorCellType, y = Frequency, fill = Subtype)) +
   geom_bar(stat = "identity") +
@@ -254,7 +162,7 @@ fig2D<-ggplot(plot_data_long, aes(x = TumorCellType, y = Frequency, fill = Subty
 print(fig2D)
 dev.off()
 
-### Figure 3K, 3L =====
+### Figure 3K, 3L ####
 data_tumor_clean_ext2 <- data_tumor %>%
   mutate(Id_ext = paste(ImageId, CellId, sep = "_"),
          NN1_ext = paste(ImageId, NN1, sep = "_"),
@@ -294,9 +202,9 @@ ggdfvio_caf[ggdfvio_caf$Id_ext %in% basalnearCAF,]$near<-"Near"
 ggdfvio_caf[!ggdfvio_caf$Id_ext %in% basalnearCAF,]$near<-"Not_Near"
 ggdfvio_caf[,keymarkerlist] <- asinh(ggdfvio_caf[,keymarkerlist] / 0.8)
 
-
-pdf("./output/3K_basal_CAF_NN_Ecad.pdf",width=3,height=3)
-fig3K<-ggplot(ggdfvio_caf, aes(x=near, y=Ecad, fill=near))+
+### Figure 3K ####
+pdf("./output/3M_basal_CAF_NN_Ecad.pdf",width=3,height=3)
+fig3M<-ggplot(ggdfvio_caf, aes(x=near, y=Ecad, fill=near))+
   geom_violin(linewidth=0.25)+
   geom_boxplot(outlier.color = NA, width=0.25, alpha=0.2, linewidth=0.25)+
   theme(axis.title.x = element_blank(),
@@ -306,11 +214,12 @@ fig3K<-ggplot(ggdfvio_caf, aes(x=near, y=Ecad, fill=near))+
         panel.background = element_blank())+
   scale_fill_manual(values=c("#E69F00", "#56B4E9"))+
   stat_compare_means(aes(label = paste0("p=", after_stat(p.format))))
-print(fig3K)
+print(fig3M)
 dev.off()
 
-pdf("./output/3L_basal_CAF_NN_Vim.pdf",width=3,height=3)
-fig3L<-ggplot(ggdfvio_caf, aes(x=near, y=VIM, fill=near))+
+### Figure 3L ####
+pdf("./output/3N_basal_CAF_NN_Vim.pdf",width=3,height=3)
+fig3N<-ggplot(ggdfvio_caf, aes(x=near, y=VIM, fill=near))+
   geom_violin(linewidth=0.25)+
   geom_boxplot(outlier.color = NA, width=0.25, alpha=0.2, linewidth=0.25)+
   theme(axis.title.x = element_blank(),
@@ -320,11 +229,11 @@ fig3L<-ggplot(ggdfvio_caf, aes(x=near, y=VIM, fill=near))+
         panel.background = element_blank())+
   scale_fill_manual(values=c("#E69F00", "#56B4E9"))+
   stat_compare_means(aes(label = paste0("p=", after_stat(p.format))))
-print(fig3L)
+print(fig3N)
 dev.off()
 
 
-### Figure 5H - finer CAF subtypes & Tumor (basal, classical, Mixed) relationship 
+## finer CAF subtypes & Tumor (basal, classical, Mixed) relationship
 get_cafs_near_subtype_2m <- function(df, subtype_indices) {
   mask1 <- df$NN1_ext %in% subtype_indices
   mask2 <- df$NN2_ext %in% subtype_indices
@@ -341,19 +250,20 @@ cafs_near_mixed_combined_2m     <- get_cafs_near_subtype_2m(data_caf_clean_ext, 
 # Generate summaries
 caf_near_epi_sum_combined_2m  <- make_caf_summary(cafs_near_basal_combined_2m, cafs_near_classical_combined_2m, cafs_near_mixed_combined_2m)
 
-##Heatmap of CAF subtypes by tumor cell subtypes
-pdf('./output/Fig5H.pdf')
-fig5H<-Heatmap(t(scale(t(as.matrix(caf_near_epi_sum_combined_2m)))),
+## Figure 5H - Heatmap of CAF subtypes by tumor cell subtypes ####
+pdf('./output/Fig5G.pdf')
+fig5G<-Heatmap(t(scale(t(as.matrix(caf_near_epi_sum_combined_2m)))),
         name = "Scaled\nFreq",
         width = ncol(caf_near_epi_sum_combined_2m)*unit(7, "mm"), 
         height = nrow(caf_near_epi_sum_combined_2m)*unit(7, "mm"),
         heatmap_legend_param = list(
           labels_gp=gpar(fontsize=6)))
-draw(fig5H)
+draw(fig5G)
 dev.off()
 
 
-### Figure 6B (immune tumor nearest neighbor) =====
+## immune tumor nearest neighbor
+data_cd45<- cd45subset_data[[1]]
 
 broadImmune_tbl<- split(data_cd45, data_cd45$cluster1m_refined)
 broadImmune_indices <- lapply(broadImmune_tbl, function(df) {
@@ -366,19 +276,20 @@ tumor_near_results  <- get_near_result(data_tumor_clean_ext, broadImmune_indices
 # Convert each result to a data frame with frequency counts
 tumor_near_tables <- summarize_near(tumor_near_results)
 
+### Figure 6B  ####
 pdf('./output/Fig6B.pdf')
-fig6A<- Heatmap(t(scale(t(as.matrix(tumor_near_tables)))),
+fig6B<- Heatmap(t(scale(t(as.matrix(tumor_near_tables)))),
         name = "Scaled\nFreq",
         width = ncol(tumor_near_tables)*unit(7, "mm"), 
         height = nrow(tumor_near_tables)*unit(7, "mm"),
         heatmap_legend_param = list(
           labels_gp=gpar(fontsize=6)))
-draw(fig6A)
+draw(fig6B)
 dev.off()
 
 
 
-### Figure 6C (immune CAF nearest neighbor)
+## immune CAF nearest neighbor
 
 # Generate CAFs near subtypes for each condition
 cafs_near_by_subtype_combined  <- get_near_result(data_caf_clean_ext,        broadImmune_indices)
@@ -418,6 +329,7 @@ CAF_Imm_3<-Heatmap(t(scale(t(as.matrix(caf_near_immune_sum_treated)))),
         heatmap_legend_param = list(
           labels_gp=gpar(fontsize=6)))
 
+### Figure 6C  ####
 pdf('./output/Fig6C.pdf')
 draw(CAF_Imm_1)
 draw(CAF_Imm_2)
@@ -425,6 +337,13 @@ draw(CAF_Imm_3)
 dev.off()
 
 ## Cluster heatmap annotation for T cell subtypes =======
+data_tcell1 <- data.matrix(data_tcell[,Tcellmarkers])
+data_tcell2 <- asinh(data_tcell1 / 0.8)
+
+rng <- colQuantiles(data_tcell2, probs = c(0.01, 0.95))
+data_tcell01 <- t((t(data_tcell2) - rng[, 1]) / (rng[, 2] - rng[, 1]))
+data_tcell01[data_tcell01 < 0] <- 0; data_tcell01[data_tcell01 > 1] <- 1
+
 clusterlevels=c("CD8+",
                 "CD4+",
                 "Cytotoxic CD8",
@@ -434,12 +353,10 @@ clusterlevels=c("CD8+",
                 "Naïve CD8",
                 "Treg")
 
-colorassigned<-kovesi.rainbow_bgyrm_35_85_c69(length(unique(cluster_merging$KYLIE_new_cluster)))
+colorassigned<-kovesi.rainbow_bgyrm_35_85_c69(length(unique(data_tcell$cluster1m_refined)))
 names(colorassigned)<-clusterlevels
-mm1 <- match(data_tcell$cluster_tcell, cluster_merging$original_cluster)
-data_tcell$cluster1m_refined2 <- cluster_merging$KYLIE_new_cluster[mm1]
 
-cluster_mean_merged <- data.frame(data_tcell01, cluster = data_tcell$cluster1m_refined2, check.names = FALSE) %>%
+cluster_mean_merged <- data.frame(data_tcell01, cluster = data_tcell$cluster1m_refined, check.names = FALSE) %>%
   group_by(cluster) %>% summarize_all(list(mean))
 cluster_mean_merged_mat<-as.data.frame(cluster_mean_merged[,Tcellmarkers])
 rownames(cluster_mean_merged_mat)<-cluster_mean_merged$cluster
@@ -454,32 +371,34 @@ color_list = list(clusters=colorassigned)
 cp<-rowAnnotation(col=color_list,
                   gp = gpar(col = "white", lwd = .5),
                   counts= anno_barplot(
-                    as.vector(table(data_tcell$cluster1m_refined2)),
+                    as.vector(table(data_tcell$cluster1m_refined)),
                     gp = gpar(fill=colorassigned),
                     border = F,
                     bar_width = 0.75, 
                     width = unit(2,"cm")))
 
+### Figure 6D ####
 pdf("./output/Fig6D.pdf",width=10,height=10)
-Heatmap(as.matrix(cluster_mean_merged_mat),
-        column_title="Phenograph Merged Clusters",
-        name = "scaled",
-        col=rev(brewer.rdbu(100)),
-        cluster_columns = T,
-        cluster_rows = F,
-        border = NA,
-        rect_gp = gpar(col = "white", lwd = .5),
-        right_annotation = cp,
-        show_row_names = T,
-        row_names_gp = gpar(fontsize=7),
-        column_names_gp = gpar(fontsize=10),
-        heatmap_legend_param = list(at=seq(from = round(min(cluster_mean_merged_mat)), to = round(max(cluster_mean_merged_mat)))),
-        width = ncol(cluster_mean_merged_mat)*unit(4, "mm"), 
-        height = nrow(cluster_mean_merged_mat)*unit(4, "mm"))
+fig6D <- Heatmap(as.matrix(cluster_mean_merged_mat),
+                 column_title="Heatmap Annotated Clusters",
+                 name = "scaled",
+                 col=rev(brewer.rdbu(100)),
+                 cluster_columns = T,
+                 cluster_rows = F,
+                 border = NA,
+                 rect_gp = gpar(col = "white", lwd = .5),
+                 right_annotation = cp,
+                 show_row_names = T,
+                 row_names_gp = gpar(fontsize=7),
+                 column_names_gp = gpar(fontsize=10),
+                 heatmap_legend_param = list(at=seq(from = round(min(cluster_mean_merged_mat)), to = round(max(cluster_mean_merged_mat)))),
+                 width = ncol(cluster_mean_merged_mat)*unit(4, "mm"), 
+                 height = nrow(cluster_mean_merged_mat)*unit(4, "mm"))
+draw(fig6D)
 dev.off()
 
 
-## frequency bar plots (Figure 6E and F) =======
+## frequency bar plots =======
 
 # Examining T cell subtypes by Tumor cell subtypes 
 # Function to get indices based on cluster type
@@ -571,10 +490,11 @@ fig6E_3<-ggplot(plot_data_long[plot_data_long$Condition=="Untreated", ], aes(x =
   scale_y_continuous(expand = c(0, 0))+
   scale_fill_manual(values = colorassigned) 
 
+### Figure 6E & Figure S12A & B  ####
 pdf('./output/Fig6E.pdf', height=3.5, width=3)
-print(fig6B_1)
-print(fig6B_2)
-print(fig6B_3)
+print(fig6E_1)
+print(fig6E_3) # FigS12A
+print(fig6E_2) # FigS12B
 dev.off()
 
 
@@ -635,10 +555,11 @@ fig6F_3<-ggplot(plot_data_long[plot_data_long$Condition=="Untreated", ], aes(x =
   scale_y_continuous(expand = c(0, 0))+
   scale_fill_manual(values = colorassigned) 
 
+### Figure 6F & Figure S12C & D  ####
 pdf('./output/Fig6F.pdf', height=4, width=3)
 print(fig6F_1)
-print(fig6F_2)
-print(fig6F_3)
+print(fig6F_3) # FigS12C
+print(fig6F_2) # FigS12D
 dev.off()
 
 ## Assessing cytokine secretion from classical, basal, or changer CAFs ##
@@ -660,31 +581,12 @@ profiler_scaled <- as.data.frame(t(scale(t(profiler))))
 #Take out NAs
 profiler_clean <- profiler_scaled[rowSums(is.na(profiler_scaled)) == 0, ]
 
-# Convert to matrix
-mat_clean <- as.matrix(profiler_clean)
-
-# Plot heatmap
-pdf('./KYLIE_output/ALL_ProteomeProf.pdf', height=35, width = 25)
-Heatmap(mat_clean,
-        cluster_rows = TRUE,
-        cluster_columns = TRUE,
-        name = "Scaled",
-        row_names_gp = gpar(fontsize = 20),
-        column_names_gp = gpar(fontsize = 20),
-        width = ncol(mat_clean) * unit(100, "mm"),
-        height = nrow(mat_clean) * unit(7, "mm"),
-        heatmap_legend_param = list(labels_gp = gpar(fontsize = 10), legend_width = unit(25, "cm"))
-)
-
-dev.off()
-
-
-## delete this if this is not the visualization setting you want. ========
 # order by changer 
 profiler_scaled_ordered <- profiler_clean[order(profiler_clean$Changer, decreasing = TRUE), ]
 
 mat_clean <- as.matrix(profiler_scaled_ordered)
 
+### Figure S11A #### 
 pdf('./output/ALL_ProteomeProf.pdf', height=35, width = 25)
 Heatmap(mat_clean,
         cluster_rows = FALSE, # do not cluster row if want to arrange by changer
@@ -699,4 +601,3 @@ Heatmap(mat_clean,
         heatmap_legend_param = list(labels_gp = gpar(fontsize = 15), legend_width = unit(30, "cm"))
 )
 dev.off()
-
