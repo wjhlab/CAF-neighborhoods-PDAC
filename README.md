@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains R scripts for custom analyses of cancer-associated fibroblast (CAF) neighborhoods and their impact on pancreatic ductal adenocarcinoma (PDAC). 
+This repository contains R/python scripts for custom analyses of cancer-associated fibroblast (CAF) neighborhoods and their impact on pancreatic ductal adenocarcinoma (PDAC). 
 
 The code covers cell-type phenotype visualization, CAF neighborhood analyses, and validation of PhenoGraph IMC clusters using Pixie, as presented in the associated manuscript.
 
