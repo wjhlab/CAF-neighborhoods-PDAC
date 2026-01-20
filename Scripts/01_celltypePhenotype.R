@@ -3,7 +3,7 @@
 ####################################################################
 
 ######RBINDING THE DATA INTO ONE DATAFRAME##### ================================
-final_colnames<- colnames(data_caf)[colnames(data_caf) %nin% c("cluster","cluster_str")]
+final_colnames<- colnames(data_caf)[colnames(data_caf) %nin% c("cluster","cluster_str","cluster2m_refined")]
 
 #merge t cell annotations into cd45 dataset
 tcell_a<- paste(data_tcell$ImageId, data_tcell$CellId, sep="_")
