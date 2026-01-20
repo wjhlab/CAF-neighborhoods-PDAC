@@ -133,7 +133,11 @@ draw(fig2C_3) # Fig S5C
 dev.off()
 
 # Convert data to format for ggplot
-plot_data_long<- reshape2::melt(as.data.frame(caf_near_epi_sum_combined)%>% rownames_to_column())
+plot_data_long <- reshape2::melt(
+  as.data.frame.matrix(caf_near_epi_sum_combined) %>% 
+    tibble::rownames_to_column("Subtype"),
+  id.vars = "Subtype")
+                                    
 names(plot_data_long)<-c("Subtype","TumorCellType", "Frequency")
 plot_data_long$Frequency <- as.numeric(plot_data_long$Frequency)
 
@@ -587,8 +591,7 @@ profiler_scaled_ordered <- profiler_clean[order(profiler_clean$Changer, decreasi
 mat_clean <- as.matrix(profiler_scaled_ordered)
 
 ### Figure S11A #### 
-pdf('./output/ALL_ProteomeProf.pdf', height=35, width = 25)
-Heatmap(mat_clean,
+pS11a<- Heatmap(mat_clean,
         cluster_rows = FALSE, # do not cluster row if want to arrange by changer
         cluster_columns = TRUE,
         name = "Scaled",
@@ -598,6 +601,9 @@ Heatmap(mat_clean,
         height = nrow(mat_clean) * unit(7, "mm"),
         column_names_rot = 0, 
         column_names_centered = TRUE,
-        heatmap_legend_param = list(labels_gp = gpar(fontsize = 15), legend_width = unit(30, "cm"))
-)
+        heatmap_legend_param = list(labels_gp = gpar(fontsize = 15), legend_width = unit(30, "cm")))
+
+pdf('./output/ALL_ProteomeProf.pdf', height=35, width = 25)
+draw(pS11a)                             
 dev.off()
+                                    
