@@ -14,9 +14,10 @@ This repository is associated with the following manuscript:
 
 ## Input data
 
-All raw MCD data files, and the `backup_output.rds` files containing the fully annotated data frame required to reproduce the manuscript figures, are available at 10.5281/zenodo.14871170 
+All raw MCD data files, and the `backup_output.rds` files containing the fully annotated data frame required to reproduce the manuscript figures, are available at [doi:10.5281/zenodo.14871170](https://doi.org/10.5281/zenodo.14871170)
 
-`Raw TIFF images` used for cell-type validation with Pixie are also available at doi.org/10.5281/zenodo.17887333
+`Raw TIFF images` used for cell-type validation with Pixie are also available at [doi.org/10.5281/zenodo.17887333](https://doi.org/10.5281/zenodo.17887333)
+
 
 ## Scripts
 
